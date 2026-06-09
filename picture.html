@@ -228,11 +228,7 @@ const FALLBACK_PHOTO_ITEMS = [
   },
 ];
 
-const MAX_VISIBLE_PHOTOS = 32;
-const PHOTO_ITEMS = (LOCAL_PHOTO_ITEMS.length ? LOCAL_PHOTO_ITEMS : FALLBACK_PHOTO_ITEMS).slice(
-  0,
-  MAX_VISIBLE_PHOTOS,
-);
+const PHOTO_ITEMS = LOCAL_PHOTO_ITEMS.length ? LOCAL_PHOTO_ITEMS : FALLBACK_PHOTO_ITEMS;
 
 const STAGE_POINTS = [0, 0.15, 0.32, 0.49, 0.66, 0.84, 1];
 
@@ -439,10 +435,56 @@ function buildCardLayouts(items, viewport) {
   });
 }
 
+function interpolateStageValue(stages, progress, key) {
+  if (progress <= STAGE_POINTS[0]) return stages[0][key];
+
+  for (let index = 0; index < STAGE_POINTS.length - 1; index += 1) {
+    const start = STAGE_POINTS[index];
+    const end = STAGE_POINTS[index + 1];
+
+    if (progress <= end) {
+      const t = (progress - start) / (end - start);
+      return stages[index][key] + (stages[index + 1][key] - stages[index][key]) * t;
+    }
+  }
+
+  return stages[stages.length - 1][key];
+}
+
+function findPointedMemoryId(layouts, viewport, clientX, clientY, progress) {
+  const centerX = viewport.width / 2;
+  const centerY = viewport.height / 2;
+  let bestMatch = null;
+
+  for (const layout of layouts) {
+    const x = centerX + interpolateStageValue(layout.stages, progress, "x");
+    const y = centerY + interpolateStageValue(layout.stages, progress, "y");
+    const scale = interpolateStageValue(layout.stages, progress, "scale");
+    const halfWidth = (layout.width * scale) / 2;
+    const halfHeight = (layout.height * scale) / 2;
+    const dx = Math.abs(clientX - x);
+    const dy = Math.abs(clientY - y);
+
+    if (dx > halfWidth || dy > halfHeight) continue;
+
+    const distance = dx / Math.max(halfWidth, 1) + dy / Math.max(halfHeight, 1);
+
+    if (!bestMatch || distance < bestMatch.distance) {
+      bestMatch = {
+        id: layout.item.id,
+        distance,
+      };
+    }
+  }
+
+  return bestMatch?.id ?? null;
+}
+
 export default function App() {
   const rafRef = useRef(0);
   const viewport = useViewportSize();
   const [activeMemory, setActiveMemory] = useState(null);
+  const [hoveredMemoryId, setHoveredMemoryId] = useState(null);
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -464,6 +506,10 @@ export default function App() {
   const sceneY = useTransform(smoothMouseY, [-1, 1], [-12, 12]);
   const sceneRotateX = useTransform(smoothMouseY, [-1, 1], [2.4, -2.4]);
   const sceneRotateY = useTransform(smoothMouseX, [-1, 1], [-3.4, 3.4]);
+  const photoById = useMemo(
+    () => new Map(PHOTO_ITEMS.map((item) => [item.id, item])),
+    [],
+  );
 
   useEffect(() => {
     const handleWheel = (event) => {
@@ -491,18 +537,42 @@ export default function App() {
 
       mouseX.set(nextX * 2);
       mouseY.set(nextY * 2);
+
+      const nextHoveredMemoryId = findPointedMemoryId(
+        cardLayouts,
+        viewport,
+        clientX,
+        clientY,
+        scrollProgress.get(),
+      );
+
+      if (nextHoveredMemoryId !== hoveredMemoryId) {
+        setHoveredMemoryId(nextHoveredMemoryId);
+      }
     });
   };
 
   const handlePointerLeave = () => {
     mouseX.set(0);
     mouseY.set(0);
+    setHoveredMemoryId(null);
+  };
+
+  const handleCardClickCapture = (event) => {
+    if (!event.target.closest("[data-memory-card]")) return;
+    const hoveredMemory = hoveredMemoryId ? photoById.get(hoveredMemoryId) : null;
+
+    if (!hoveredMemory) return;
+
+    event.stopPropagation();
+    setActiveMemory(hoveredMemory);
   };
 
   return (
     <main
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
+      onClickCapture={handleCardClickCapture}
       className="fixed inset-0 h-screen overflow-hidden bg-[#03000a] text-white antialiased"
       style={{
         fontFamily:
@@ -609,6 +679,8 @@ export default function App() {
                   index={index}
                   progress={progress}
                   onSelect={setActiveMemory}
+                  onHover={setHoveredMemoryId}
+                  isHovered={hoveredMemoryId === layout.item.id}
                 />
               ))}
             </motion.div>
@@ -816,7 +888,7 @@ function HeartField({ count }) {
   );
 }
 
-function MemoryCard({ layout, progress, index, onSelect }) {
+function MemoryCard({ layout, progress, index, onSelect, onHover, isHovered }) {
   const states = layout.stages;
 
   const rawX = useTransform(progress, STAGE_POINTS, states.map((stage) => stage.x));
@@ -841,6 +913,8 @@ function MemoryCard({ layout, progress, index, onSelect }) {
   return (
     <motion.div
       className="absolute left-1/2 top-1/2 will-change-transform"
+      onPointerEnter={() => onHover(layout.item.id)}
+      onPointerLeave={() => onHover(null)}
       style={{
         width: layout.width,
         height: layout.height,
@@ -854,14 +928,17 @@ function MemoryCard({ layout, progress, index, onSelect }) {
         rotateZ,
         scale,
         opacity,
-        zIndex,
+        zIndex: isHovered ? 9999 : zIndex,
         transformStyle: "preserve-3d",
       }}
     >
       <motion.button
+        data-memory-card
         type="button"
         aria-label={`Open ${layout.item.title}`}
         onClick={() => onSelect(layout.item)}
+        onFocus={() => onHover(layout.item.id)}
+        onBlur={() => onHover(null)}
         className="group glass-edge relative h-full w-full cursor-pointer overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.065] p-[7px] text-left outline-none will-change-transform focus-visible:ring-2 focus-visible:ring-[#ffd4a3]/70"
         whileHover={{
           y: -18,
@@ -897,6 +974,10 @@ function MemoryCard({ layout, progress, index, onSelect }) {
 
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/8 via-transparent to-black/68" />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.18),transparent_34%)] opacity-45 mix-blend-screen" />
+
+          <span className="absolute right-2 top-2 z-40 rounded-full border border-white/15 bg-black/55 px-2 py-1 text-[9px] font-medium uppercase tracking-[0.18em] text-white/75 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+            Open
+          </span>
 
           <div className="absolute bottom-0 left-0 right-0 p-3">
             <div className="rounded-2xl border border-white/10 bg-black/40 px-3 py-2">
