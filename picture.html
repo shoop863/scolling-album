@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AnimatePresence,
   motion,
-  useMotionTemplate,
   useMotionValue,
   useSpring,
   useTransform,
@@ -229,7 +228,11 @@ const FALLBACK_PHOTO_ITEMS = [
   },
 ];
 
-const PHOTO_ITEMS = LOCAL_PHOTO_ITEMS.length ? LOCAL_PHOTO_ITEMS : FALLBACK_PHOTO_ITEMS;
+const MAX_VISIBLE_PHOTOS = 32;
+const PHOTO_ITEMS = (LOCAL_PHOTO_ITEMS.length ? LOCAL_PHOTO_ITEMS : FALLBACK_PHOTO_ITEMS).slice(
+  0,
+  MAX_VISIBLE_PHOTOS,
+);
 
 const STAGE_POINTS = [0, 0.15, 0.32, 0.49, 0.66, 0.84, 1];
 
@@ -320,7 +323,7 @@ function buildCardLayouts(items, viewport) {
       rz: signedNoise(index, 6) * 34,
       scale: 0.68 + noise(index, 7) * 0.45,
       opacity: 0.38 + noise(index, 8) * 0.52,
-      blur: noise(index, 9) * 1.6,
+      blur: 0,
       brightness: 0.9 + noise(index, 12) * 0.22,
     };
 
@@ -333,7 +336,7 @@ function buildCardLayouts(items, viewport) {
       rz: -9 + centered * 22 + signedNoise(index, 14) * 5,
       scale: 0.72 + (1 - Math.abs(centered)) * 0.22,
       opacity: 0.88,
-      blur: Math.abs(centered) * 0.55,
+      blur: 0,
       brightness: 1.02,
     };
 
@@ -347,7 +350,7 @@ function buildCardLayouts(items, viewport) {
       rz: (arcAngle * 180) / Math.PI + 90,
       scale: 0.7 + Math.pow(1 - Math.abs(centered), 1.7) * 0.22,
       opacity: 0.9,
-      blur: 0.15 + Math.abs(Math.cos(arcAngle)) * 0.35,
+      blur: 0,
       brightness: 1.04,
     };
 
@@ -364,7 +367,7 @@ function buildCardLayouts(items, viewport) {
       rz: (spiralAngle * 180) / Math.PI + 96,
       scale: 0.56 + (1 - index / count) * 0.35 + noise(index, 15) * 0.08,
       opacity: 0.91,
-      blur: index > count * 0.72 ? 0.7 : 0.1,
+      blur: 0,
       brightness: 1.08,
     };
 
@@ -403,7 +406,7 @@ function buildCardLayouts(items, viewport) {
       rz: isHero ? -2 : signedNoise(index, 27) * 13,
       scale: isHero ? (isMobile ? 0.96 : 1.16) : isSecondaryHero ? 0.86 : isMobile ? 0.52 : 0.64,
       opacity: isHero ? 1 : 0.86 + noise(index, 28) * 0.13,
-      blur: isHero ? 0 : noise(index, 29) * 0.25,
+      blur: 0,
       brightness: isHero ? 1.08 : 0.96 + noise(index, 30) * 0.1,
     };
 
@@ -416,7 +419,7 @@ function buildCardLayouts(items, viewport) {
       rz: wall.rz * 0.7,
       scale: wall.scale * (isHero ? 1.06 : 0.96),
       opacity: isHero ? 1 : 0.78 + noise(index, 33) * 0.16,
-      blur: isHero ? 0 : 0.15,
+      blur: 0,
       brightness: isHero ? 1.12 : 0.92,
     };
 
@@ -424,10 +427,10 @@ function buildCardLayouts(items, viewport) {
       item,
       width: cardWidth,
       height: cardHeight,
-      floatDuration: 6.5 + noise(index, 34) * 5.5,
-      floatDelay: noise(index, 35) * -8,
-      floatY: 5 + noise(index, 36) * 10,
-      floatRotate: signedNoise(index, 37) * 1.4,
+      floatDuration: 0,
+      floatDelay: 0,
+      floatY: 0,
+      floatRotate: 0,
       stages: [scatter, band, arc, vortex, grid, wall, ending].map((stage) => ({
         ...stage,
         zIndex: Math.round(1000 + stage.z),
@@ -658,7 +661,7 @@ function CosmicBackground({ progress, mouseX, mouseY }) {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(94,40,124,0.34),transparent_36%),radial-gradient(circle_at_20%_20%,rgba(96,76,172,0.2),transparent_38%),radial-gradient(circle_at_85%_72%,rgba(174,62,126,0.14),transparent_36%),linear-gradient(135deg,#020008_0%,#070013_42%,#0b061f_70%,#03000a_100%)]" />
 
       <motion.div
-        className="absolute left-1/2 top-1/2 h-[72vmin] w-[72vmin] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
+        className="absolute left-1/2 top-1/2 h-[72vmin] w-[72vmin] -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl"
         style={{
           x: orbOneX,
           y: orbOneY,
@@ -669,7 +672,7 @@ function CosmicBackground({ progress, mouseX, mouseY }) {
       />
 
       <motion.div
-        className="absolute right-[-12vmin] top-[18vmin] h-[54vmin] w-[54vmin] rounded-full blur-3xl"
+        className="absolute right-[-12vmin] top-[18vmin] h-[54vmin] w-[54vmin] rounded-full blur-2xl"
         style={{
           x: orbTwoX,
           y: orbTwoY,
@@ -679,12 +682,12 @@ function CosmicBackground({ progress, mouseX, mouseY }) {
       />
 
       <motion.div className="absolute inset-0" style={{ x: farX, y: farY }}>
-        <DustField count={118} depth="far" />
+        <DustField count={36} depth="far" />
       </motion.div>
 
       <motion.div className="absolute inset-0" style={{ x: nearX, y: nearY }}>
-        <DustField count={46} depth="near" />
-        <HeartField count={22} />
+        <DustField count={14} depth="near" />
+        <HeartField count={8} />
       </motion.div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent" />
@@ -833,10 +836,7 @@ function MemoryCard({ layout, progress, index, onSelect }) {
   const scale = useSpring(rawScale, CARD_SPRING);
 
   const opacity = useTransform(progress, STAGE_POINTS, states.map((stage) => stage.opacity));
-  const blur = useTransform(progress, STAGE_POINTS, states.map((stage) => stage.blur));
-  const brightness = useTransform(progress, STAGE_POINTS, states.map((stage) => stage.brightness));
   const zIndex = useTransform(progress, STAGE_POINTS, states.map((stage) => stage.zIndex));
-  const filter = useMotionTemplate`blur(${blur}px) brightness(${brightness}) saturate(1.08)`;
 
   return (
     <motion.div
@@ -855,7 +855,6 @@ function MemoryCard({ layout, progress, index, onSelect }) {
         scale,
         opacity,
         zIndex,
-        filter,
         transformStyle: "preserve-3d",
       }}
     >
@@ -863,17 +862,7 @@ function MemoryCard({ layout, progress, index, onSelect }) {
         type="button"
         aria-label={`Open ${layout.item.title}`}
         onClick={() => onSelect(layout.item)}
-        className="group glass-edge relative h-full w-full cursor-pointer overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.065] p-[7px] text-left outline-none backdrop-blur-xl will-change-transform focus-visible:ring-2 focus-visible:ring-[#ffd4a3]/70"
-        animate={{
-          y: [0, -layout.floatY, 0],
-          rotate: [0, layout.floatRotate, 0],
-        }}
-        transition={{
-          duration: layout.floatDuration,
-          delay: layout.floatDelay,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
+        className="group glass-edge relative h-full w-full cursor-pointer overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.065] p-[7px] text-left outline-none will-change-transform focus-visible:ring-2 focus-visible:ring-[#ffd4a3]/70"
         whileHover={{
           y: -18,
           scale: 1.075,
@@ -890,7 +879,7 @@ function MemoryCard({ layout, progress, index, onSelect }) {
         whileTap={{ scale: 0.985 }}
       >
         <span className="pointer-events-none absolute inset-0 z-20 rounded-[28px] bg-gradient-to-tr from-white/0 via-white/0 to-white/18 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-        <span className="pointer-events-none absolute -inset-16 z-30 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.25),transparent_58%)] opacity-0 blur-2xl transition-opacity duration-700 group-hover:opacity-100" />
+        <span className="pointer-events-none absolute -inset-16 z-30 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.18),transparent_58%)] opacity-0 transition-opacity duration-700 group-hover:opacity-100" />
 
         <div className="relative h-full w-full overflow-hidden rounded-[22px] bg-black/30">
           <motion.img
@@ -910,7 +899,7 @@ function MemoryCard({ layout, progress, index, onSelect }) {
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.18),transparent_34%)] opacity-45 mix-blend-screen" />
 
           <div className="absolute bottom-0 left-0 right-0 p-3">
-            <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-2 backdrop-blur-md">
+            <div className="rounded-2xl border border-white/10 bg-black/40 px-3 py-2">
               <p className="truncate text-[10px] font-medium uppercase tracking-[0.2em] text-white/82">
                 {String(index + 1).padStart(2, "0")} / Memory
               </p>
