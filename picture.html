@@ -16,8 +16,8 @@ import {
  * src: "https://your-cdn.com/photo-01.jpg"
  * 建议保留 id 不变，这样 Framer Motion 的共享动画会更稳定。
  */
-const localPhotoModules = import.meta.glob(
-  "../picture/**/*.{jpg,jpeg,png,webp,avif,gif,JPG,JPEG,PNG,WEBP,AVIF,GIF}",
+const optimizedPhotoModules = import.meta.glob(
+  "./optimized-picture/*.webp",
   {
     eager: true,
     import: "default",
@@ -25,7 +25,7 @@ const localPhotoModules = import.meta.glob(
   },
 );
 
-const LOCAL_PHOTO_ITEMS = Object.entries(localPhotoModules)
+const LOCAL_PHOTO_ITEMS = Object.entries(optimizedPhotoModules)
   .sort(([pathA], [pathB]) => pathA.localeCompare(pathB, undefined, { numeric: true }))
   .map(([path, src], index) => ({
     id: `local-memory-${index + 1}`,
@@ -897,6 +897,11 @@ function MemoryCard({ layout, progress, index, onSelect }) {
             layoutId={`photo-${layout.item.id}`}
             src={layout.item.src}
             alt={layout.item.title}
+            width={layout.width}
+            height={layout.height}
+            loading={index < 8 ? "eager" : "lazy"}
+            decoding="async"
+            fetchPriority={index < 4 ? "high" : "low"}
             draggable="false"
             className="h-full w-full select-none object-cover"
           />
@@ -1063,6 +1068,8 @@ function DetailModal({ memory, onClose }) {
                 layoutId={`photo-${memory.id}`}
                 src={memory.src}
                 alt={memory.title}
+                loading="eager"
+                decoding="async"
                 draggable="false"
                 className="absolute inset-0 h-full w-full select-none object-cover"
               />

@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .vite/
+picture/
 vite-dev.log
 vite-dev.err.log
 npm-debug.log*
